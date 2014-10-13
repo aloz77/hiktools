@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 
 // Open index file
 
-  if (!err && !help && inputPath!=NULL && outputPath!=NULL)
+  if (!err && !help && inputPath!=NULL)
   {
   	idxFile=fopen(makefilename(inputPath,"index00.bin"),"rb");
   	if (!idxFile)
@@ -235,7 +235,7 @@ int main(int argc, char **argv)
 
 // Extract from video file
 
-  					if (1) //if (i==7) // Extract only from one file pls
+  					if (outputPath!=NULL) //if (i==7) // Extract only from one file pls
   					{
     					size_t filesize = segment.endOffset - segment.startOffset;
     					size_t l1,l2;  			
@@ -320,6 +320,11 @@ int main(int argc, char **argv)
 	  						fclose(ivFile);
 	  					}
   					}
+  					else
+  					{	logger(LOG_ERROR,"main","Output directory path not specified");
+	    				err++;
+	    				return 1;
+	    			}
   		  	}
 				}
 				
@@ -377,9 +382,12 @@ char *timefilename(char* prefix, char* postfix, time_t start, time_t end)
 char *filebuffer=NULL;
 char *makefilename(char *path, char *name)
 {
-	if (filebuffer!=NULL) free(filebuffer);
+	if (filebuffer!=NULL) 
+  { free(filebuffer);
+  	filebuffer=NULL;
+  }
 	
-	filebuffer = malloc (strlen(path)+strlen(name)+1);
+	filebuffer = malloc (strlen(path)+strlen(name)+2);
 	if (filebuffer)
 	{	
 		strcpy (filebuffer,path);
