@@ -4,8 +4,8 @@ Tools for Hikvision IP cameras
 
 ## extract_video.c
 
-Read/Extract Hikvision Video File Storage  
-Alexey Ozerov (c) 2014 - ver. 0.2
+    Read/Extract Hikvision Video File Storage  
+    Alexey Ozerov (c) 2014 - ver. 0.3
 
     Options
      -? -h            Display this help
