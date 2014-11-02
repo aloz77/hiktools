@@ -13,8 +13,42 @@ Test:
 #include <stdint.h>
 #include <unistd.h>
 #include <time.h>
+//#include <endian.h>
+#include <byteswap.h>
 
-#define PROGRAM_VERSION "0.2"
+// Index file data is saved little endian, so may need some conversion
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define	htobe16(x)	__bswap_16((uint16_t)(x))
+#define	htobe32(x)	__bswap_32((uint32_t)(x))
+#define	htobe64(x)	__bswap_64((uint64_t)(x))
+#define	htole16(x)	((uint16_t)(x))
+#define	htole32(x)	((uint32_t)(x))
+#define	htole64(x)	((uint64_t)(x))
+
+#define	be16toh(x)	__bswap_16((uint16_t)(x))
+#define	be32toh(x)	__bswap_32((uint32_t)(x))
+#define	be64toh(x)	bswap64((uint64_t)(x))
+#define	le16toh(x)	((uint16_t)(x))
+#define	le32toh(x)	((uint32_t)(x))
+#define	le64toh(x)	((uint64_t)(x))
+#else /* __BYTE_ORDER != __LITTLE_ENDIAN */
+#define	htobe16(x)	((uint16_t)(x))
+#define	htobe32(x)	((uint32_t)(x))
+#define	htobe64(x)	((uint64_t)(x))
+#define	htole16(x)	__bswap_16((uint16_t)(x))
+#define	htole32(x)	__bswap_32((uint32_t)(x))
+#define	htole64(x)	__bswap_64((uint64_t)(x))
+
+#define	be16toh(x)	((uint16_t)(x))
+#define	be32toh(x)	((uint32_t)(x))
+#define	be64toh(x)	((uint64_t)(x))
+#define	le16toh(x)	__bswap_16((uint16_t)(x))
+#define	le32toh(x)	__bswap_32((uint32_t)(x))
+#define	le64toh(x)	__bswap_64((uint64_t)(x))
+#endif /* __BYTE_ORDER == __LITTLE_ENDIAN */
+
+
+#define PROGRAM_VERSION "0.3"
 
 struct FILE_IDX_HEADER
 {	
@@ -76,6 +110,38 @@ void logger(log_event event,char *function,char *msg,...);
 char *timeformat(time_t time);
 char *makefilename(char *path, char *name);
 char *timefilename(char* prefix, char* postfix, time_t start, time_t end);
+
+void FILE_IDX_HEADER_normalize (struct FILE_IDX_HEADER *f)
+{
+	f->modifyTimes  =le64toh(f->modifyTimes);
+  f->version      =le32toh(f->version);
+  f->avFiles      =le32toh(f->avFiles);
+  f->nextFileRecNo=le32toh(f->nextFileRecNo);
+  f->lastFileRecNo=le32toh(f->lastFileRecNo);
+  f->checksum     =le32toh(f->checksum);
+}
+
+void FILE_IDX_RECORD_normalize (struct FILE_IDX_RECORD *f)
+{
+	f->fileNo      =le32toh(f->fileNo);
+  f->chan        =le16toh(f->chan);
+  f->segRecNums  =le16toh(f->segRecNums);
+  f->startTime   =le32toh(f->startTime);
+  f->endTime     =le32toh(f->endTime);
+  f->lockedSegNum=le16toh(f->lockedSegNum);
+}
+
+void SEGMENT_IDX_RECORD_normalize (struct SEGMENT_IDX_RECORD *f)
+{
+  f->startTime            =le64toh(f->startTime);
+  f->endTime              =le64toh(f->endTime);
+  f->firstKeyFrame_absTime=le64toh(f->firstKeyFrame_absTime);
+  f->firstKeyFrame_stdTime=le32toh(f->firstKeyFrame_stdTime);
+  f->lastFrame_stdTime    =le32toh(f->lastFrame_stdTime);
+  f->startOffset          =le32toh(f->startOffset);
+  f->endOffset            =le32toh(f->endOffset);
+}
+
 
 
 int main(int argc, char **argv)
@@ -173,6 +239,12 @@ int main(int argc, char **argv)
   			return 1;
   		}
 
+			FILE_IDX_HEADER_normalize(&header);
+/*
+			int test=2;
+			for (i = 0; i < sizeof(test); i++) { printf("%02x ", ((const unsigned char *)&test)[i]); }
+*/
+
 			if (verbose)
 			{	printf("HEADER =================\n");
 				printf("version: %u\n",header.version);
@@ -191,6 +263,8 @@ int main(int argc, char **argv)
   	  		err++;
   		  	return 1;
   		  }
+  		  
+  		  FILE_IDX_RECORD_normalize(&file);
 
         if (file.chan != 0xFFFF) // Skip empty file records
         {
@@ -217,6 +291,8 @@ int main(int argc, char **argv)
   	    		err++;
   		    	return 1;
   		    }
+
+					SEGMENT_IDX_RECORD_normalize(&segment);
 
           if (segment.type != 0x00 && segment.startTime != 0 && segment.endTime != 0) // Skip empty segment records
           {
@@ -330,7 +406,7 @@ int main(int argc, char **argv)
 				
 			}
 			
-			printf("\nTotal files: %lu\n",total_files);
+			printf("Total files: %lu\n",total_files);
 			printf("Total file size: %llu bytes (=%llu MB)\n",total_filesize,total_filesize/1024/1024);
 			printf("Total play time: %lu sec (=%lu min)\n",total_time,total_time/60);
 
